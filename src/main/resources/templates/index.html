@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone-like Calculator</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<div class="calculator">
+    <div class="display">
+        <label for="calc-display"></label><input type="text" id="calc-display" disabled value="0">
+    </div>
+    <div class="buttons">
+        <button class="btn clear">AC</button>
+        <button class="btn">±</button>
+        <button class="btn">%</button>
+        <button class="btn operator">÷</button>
+        <button class="btn">7</button>
+        <button class="btn">8</button>
+        <button class="btn">9</button>
+        <button class="btn operator">×</button>
+        <button class="btn">4</button>
+        <button class="btn">5</button>
+        <button class="btn">6</button>
+        <button class="btn operator">-</button>
+        <button class="btn">1</button>
+        <button class="btn">2</button>
+        <button class="btn">3</button>
+        <button class="btn operator">+</button>
+        <button class="btn zero">0</button>
+        <button class="btn">.</button>
+        <button class="btn operator equals">=</button>
+    </div>
+</div>
+<script>
+    let currentNumber = '0';
+    let previousNumber = '';
+    let operator = null;
+    let displayValue = '0';
+
+    const buttons = document.querySelectorAll('.btn');
+    const display = document.getElementById('calc-display');
+
+    buttons.forEach(button => {
+        button.addEventListener('click', () => {
+            const value = button.textContent;
+
+            if (value === '.') {
+                // 小数点がすでに含まれていない場合に追加
+                if (!currentNumber.includes('.')) {
+                    currentNumber += value;
+                    displayValue += value;
+                }
+            } else if (!isNaN(value)) { // 数字の場合
+                if (currentNumber === "0") {
+                    currentNumber = value; // 初期値の"0"を置き換える
+                } else {
+                    currentNumber += value; // 数字を連結する
+                }
+                displayValue = previousNumber + (operator || '') + currentNumber;
+            } else if (['+', '-', '×', '÷'].includes(value)) {
+                // 演算子が押されたときの処理
+                if (currentNumber === '') {
+                    // currentNumberが空の場合（初期状態で演算子だけが押された）
+                    currentNumber = '0'; // 初期値として0を代入
+                }
+                operator = value; // 入力された演算子を保存
+                previousNumber = currentNumber;
+                currentNumber = ''; // 次の入力のためにクリア
+                displayValue += operator; // 画面に表示
+            } else if (value === '=') {
+                // サーバーに計算リクエストを送信
+                const operatorMap = { '×': '*', '÷': '/' }; // フロントエンドとバックエンドの演算子のマッピング
+                const requestBody = `num1=${encodeURIComponent(previousNumber)}&num2=${encodeURIComponent(currentNumber)}&operator=${encodeURIComponent(operatorMap[operator] || operator)}`;
+
+                console.log("Request body:", previousNumber, currentNumber, operator); // リクエストデータをログに出力
+                fetch('/api/calculate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: requestBody,
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log("Response:", data); // サーバーからのレスポンスをログに出力
+                        if (data.status === "success") {
+                            displayValue = data.result;
+                            currentNumber = data.result.toString();
+                            previousNumber = '';
+                            operator = null;
+                        } else {
+                            displayValue = "Error: " + data.message;
+                        }
+                        display.value = displayValue;
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        display.value = 'Error';
+                    });
+            } else if (value === 'AC') {
+                currentNumber = '';
+                previousNumber = '';
+                operator = null;
+                displayValue = '0';
+            }
+            display.value = displayValue;
+        });
+    });
+
+
+</script>
+</body>
